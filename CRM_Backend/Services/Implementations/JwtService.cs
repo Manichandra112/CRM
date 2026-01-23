@@ -32,11 +32,14 @@ public class JwtService : IJwtService
             new(JwtRegisteredClaimNames.Email, user.Email),
             new("username", user.Username),
 
-            // 🔐 PASSWORD RESET GATE (SOURCE OF TRUTH)
+            // 🔐 PASSWORD RESET GATE
             new(
                 "pwd_reset_completed",
                 passwordResetCompleted.ToString().ToLower()
             ),
+
+            // ✅ ACCOUNT STATUS (Zoho-style hard gate)
+            new("account_status", user.AccountStatus),
 
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(

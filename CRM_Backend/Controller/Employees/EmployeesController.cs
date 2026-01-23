@@ -5,8 +5,9 @@ using System.Security.Claims;
 
 [ApiController]
 [Route("api/employees")]
- [Authorize(Policy = "HR_EMP_VIEW")]
+[Authorize(Policy = "EMP_VIEW")]
 [Authorize(Policy = "PASSWORD_RESET_COMPLETED")]
+[Authorize(Policy = "ACCOUNT_ACTIVE")]
 public class EmployeesController : ControllerBase
 {
     private readonly IEmployeeService _service;

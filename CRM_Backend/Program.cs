@@ -132,12 +132,32 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // --------------------------------------------------
 builder.Services.AddAuthorization(options =>
 {
+    // auto-register policies from permissions table
     PermissionPolicies.Register(options);
 
+    // account gates
     options.AddPolicy("PASSWORD_RESET_COMPLETED", policy =>
         policy.RequireClaim("pwd_reset_completed", "true")
     );
+
+    options.AddPolicy("ACCOUNT_ACTIVE", policy =>
+        policy.RequireClaim("account_status", "ACTIVE")
+    );
+
+    // user management
+    options.AddPolicy("USER_ASSIGN_MANAGER", policy =>
+        policy.RequireClaim("perm", "USER_ASSIGN_MANAGER")
+    );
+
+    options.AddPolicy("USER_VIEW_TEAM", policy =>
+        policy.RequireClaim("perm", "USER_VIEW_TEAM")
+    );
+
+    options.AddPolicy("USER_VIEW", policy =>
+        policy.RequireClaim("perm", "USER_VIEW")
+    );
 });
+
 
 
 
@@ -159,6 +179,7 @@ builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IUserVisibilityService, UserVisibilityService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 
 

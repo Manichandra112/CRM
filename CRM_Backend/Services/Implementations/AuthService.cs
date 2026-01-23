@@ -5,6 +5,7 @@ using CRM_Backend.Security.Tokens;
 using CRM_Backend.Services.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
+using CRM_Backend.Domain.Constants;
 
 namespace CRM_Backend.Services.Implementations;
 
@@ -63,8 +64,24 @@ public class AuthService : IAuthService
         if (security?.LockedUntil != null && security.LockedUntil > DateTime.UtcNow)
             return Fail("Account is temporarily locked");
 
-        if (user.AccountStatus != "ACTIVE")
-            return Fail("Account is not active");
+        if (user.AccountStatus != AccountStatus.ACTIVE)
+        {
+            var reason = user.AccountStatus == AccountStatus.INACTIVE
+                ? "Account is inactive"
+                : "Account has been exited";
+
+            await LogAttempt(
+                user.UserId,
+                user.Email,
+                ipAddress,
+                userAgent,
+                false,
+                reason
+            );
+
+            return Fail(reason);
+        }
+
 
         var currentPassword = await _passwordRepository.GetCurrentPasswordAsync(user.UserId);
 

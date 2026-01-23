@@ -30,6 +30,9 @@ public class CrmAuthDbContext : DbContext
     // CRM Domains (HR, SALES, SOCIAL, etc.)
     public DbSet<DomainEntity> Domains => Set<DomainEntity>();
 
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -86,5 +89,34 @@ public class CrmAuthDbContext : DbContext
         modelBuilder.Entity<UserRole>()
             .HasIndex(ur => new { ur.UserId, ur.RoleId })
             .IsUnique();
+
+        // ------------------------------------------------
+        // AUDIT LOGS (append-only)
+        // ------------------------------------------------
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.ToTable("audit_logs");
+
+            entity.HasKey(a => a.AuditId);
+
+            entity.Property(a => a.Action)
+                  .IsRequired()
+                  .HasMaxLength(100);
+
+            entity.Property(a => a.Module)
+                  .IsRequired()
+                  .HasMaxLength(50);
+
+            entity.Property(a => a.Metadata)
+                  .HasColumnType("jsonb");
+
+            entity.Property(a => a.CreatedAt)
+                  .IsRequired();
+
+            entity.HasIndex(a => a.ActorUserId);
+            entity.HasIndex(a => a.TargetUserId);
+        });
+
     }
+
 }

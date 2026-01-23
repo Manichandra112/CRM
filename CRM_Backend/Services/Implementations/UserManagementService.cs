@@ -14,19 +14,22 @@ public class UserManagementService : IUserManagementService
     private readonly IRoleRepository _roles;
     private readonly IDomainRepository _domains;
     private readonly IUserRepository _users;
+    private readonly IAuditLogService _audit;
 
     public UserManagementService(
         CrmAuthDbContext context,
         IPasswordService passwordService,
         IRoleRepository roles,
         IDomainRepository domains,
-        IUserRepository users)
+        IUserRepository users,
+        IAuditLogService audit)
     {
         _context = context;
         _passwordService = passwordService;
         _roles = roles;
         _domains = domains;
         _users = users;
+        _audit = audit;
     }
 
     public async Task<long> CreateUserAsync(CreateUserDto dto, long createdBy)
@@ -100,6 +103,16 @@ public class UserManagementService : IUserManagementService
             });
         }
 
+        _context.AuditLogs.Add(new AuditLog
+        {
+            ActorUserId = createdBy,
+            TargetUserId = user.UserId,
+            Action = "USER_CREATE",
+            Module = "USERS",
+            Metadata = $"Domain={dto.DomainCode}",
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync();
         return user.UserId;
     }
@@ -117,6 +130,16 @@ public class UserManagementService : IUserManagementService
             ?? throw new Exception("Manager not found");
 
         user.ManagerId = managerId;
+        _context.AuditLogs.Add(new AuditLog
+        {
+            ActorUserId = managerId,
+            TargetUserId = userId,
+            Action = "ASSIGN_MANAGER",
+            Module = "USERS",
+            Metadata = $"ManagerId={managerId}",
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync();
     }
 
@@ -165,9 +188,7 @@ public class UserManagementService : IUserManagementService
     // --------------------------------------------------
     // 🔹 GET MANAGERS BY DOMAIN (permission-based)
     // --------------------------------------------------
-    public async Task<List<UserLookupDto>> GetManagersByDomainAsync(
-       string domainCode,
-       string roleCode)
+    public async Task<List<UserLookupDto>> GetManagersByDomainAsync(string domainCode)
     {
         var domain = await _domains.GetByCodeAsync(domainCode)
             ?? throw new Exception("Invalid domain");
@@ -176,7 +197,7 @@ public class UserManagementService : IUserManagementService
             .Where(u =>
                 u.AccountStatus == "ACTIVE" &&
                 u.DomainId == domain.DomainId &&
-                u.UserRoles.Any(ur => ur.Role.RoleCode == roleCode)
+                u.UserRoles.Any(ur => ur.Role.RoleCode.EndsWith("_MANAGER"))
             )
             .Select(u => new UserLookupDto
             {
@@ -186,6 +207,7 @@ public class UserManagementService : IUserManagementService
             .OrderBy(u => u.Name)
             .ToListAsync();
     }
+
 
 
     // --------------------------------------------------
@@ -291,43 +313,91 @@ public class UserManagementService : IUserManagementService
             .FirstOrDefaultAsync(u => u.UserId == userId)
             ?? throw new Exception("User not found");
 
-        // Update user fields
-        if (dto.Department != null)
+        // Track what changed (important for audit)
+        var changes = new List<string>();
+
+        // ---------------- USER FIELDS ----------------
+        if (dto.Department != null && dto.Department != user.Department)
+        {
+            changes.Add($"Department: {user.Department} → {dto.Department}");
             user.Department = dto.Department;
+        }
 
-        if (dto.Designation != null)
+        if (dto.Designation != null && dto.Designation != user.Designation)
+        {
+            changes.Add($"Designation: {user.Designation} → {dto.Designation}");
             user.Designation = dto.Designation;
+        }
 
-        if (dto.EmploymentType != null)
+        if (dto.EmploymentType != null && dto.EmploymentType != user.EmploymentType)
+        {
+            changes.Add($"EmploymentType: {user.EmploymentType} → {dto.EmploymentType}");
             user.EmploymentType = dto.EmploymentType;
+        }
 
-        if (dto.WorkShift != null)
+        if (dto.WorkShift != null && dto.WorkShift != user.WorkShift)
+        {
+            changes.Add($"WorkShift: {user.WorkShift} → {dto.WorkShift}");
             user.WorkShift = dto.WorkShift;
+        }
 
-        if (dto.AssignedRegion != null)
+        if (dto.AssignedRegion != null && dto.AssignedRegion != user.AssignedRegion)
+        {
+            changes.Add($"AssignedRegion: {user.AssignedRegion} → {dto.AssignedRegion}");
             user.AssignedRegion = dto.AssignedRegion;
+        }
 
-        if (dto.AssignedBranch != null)
+        if (dto.AssignedBranch != null && dto.AssignedBranch != user.AssignedBranch)
+        {
+            changes.Add($"AssignedBranch: {user.AssignedBranch} → {dto.AssignedBranch}");
             user.AssignedBranch = dto.AssignedBranch;
+        }
 
-        if (dto.Remarks != null)
+        if (dto.Remarks != null && dto.Remarks != user.Remarks)
+        {
+            changes.Add("Remarks updated");
             user.Remarks = dto.Remarks;
+        }
 
-        // Update profile fields
-        if (dto.FirstName != null)
+        // ---------------- PROFILE FIELDS ----------------
+        if (dto.FirstName != null && dto.FirstName != user.Profile.FirstName)
+        {
+            changes.Add($"FirstName: {user.Profile.FirstName} → {dto.FirstName}");
             user.Profile.FirstName = dto.FirstName;
+        }
 
-        if (dto.LastName != null)
+        if (dto.LastName != null && dto.LastName != user.Profile.LastName)
+        {
+            changes.Add($"LastName: {user.Profile.LastName} → {dto.LastName}");
             user.Profile.LastName = dto.LastName;
+        }
 
-        if (dto.MobileNumber != null)
+        if (dto.MobileNumber != null && dto.MobileNumber != user.Profile.MobileNumber)
+        {
+            changes.Add($"MobileNumber updated");
             user.Profile.MobileNumber = dto.MobileNumber;
+        }
 
         user.UpdatedAt = DateTime.UtcNow;
         user.UpdatedBy = updatedBy;
 
+        // ---------------- AUDIT LOG ----------------
+        if (changes.Any())
+        {
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = updatedBy,
+                TargetUserId = userId,
+                Action = "USER_UPDATE",
+                Module = "USERS",
+                Metadata = string.Join(" | ", changes),
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
         await _context.SaveChangesAsync();
     }
+
 
 
     public async Task LockUserAsync(long userId, string reason, long lockedBy)
@@ -342,6 +412,16 @@ public class UserManagementService : IUserManagementService
         user.LockReason = reason;
         user.UpdatedAt = DateTime.UtcNow;
         user.UpdatedBy = lockedBy;
+
+        _context.AuditLogs.Add(new AuditLog
+        {
+            ActorUserId = lockedBy,
+            TargetUserId = userId,
+            Action = "USER_LOCK",
+            Module = "USERS",
+            Metadata = reason,
+            CreatedAt = DateTime.UtcNow
+        });
 
         await _context.SaveChangesAsync();
     }
@@ -358,6 +438,15 @@ public class UserManagementService : IUserManagementService
         user.LockReason = null;
         user.UpdatedAt = DateTime.UtcNow;
         user.UpdatedBy = unlockedBy;
+
+        _context.AuditLogs.Add(new AuditLog
+        {
+            ActorUserId = unlockedBy,
+            TargetUserId = userId,
+            Action = "USER_UNLOCK",
+            Module = "USERS",
+            CreatedAt = DateTime.UtcNow
+        });
 
         await _context.SaveChangesAsync();
     }
