@@ -4,6 +4,8 @@ using CRM_Backend.DTOs.Users;
 using CRM_Backend.Repositories.Interfaces;
 using CRM_Backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+
 
 namespace CRM_Backend.Services.Implementations;
 
@@ -109,7 +111,10 @@ public class UserManagementService : IUserManagementService
             TargetUserId = user.UserId,
             Action = "USER_CREATE",
             Module = "USERS",
-            Metadata = $"Domain={dto.DomainCode}",
+            Metadata = JsonSerializer.Serialize(new
+            {
+                domain = dto.DomainCode
+            }),
             CreatedAt = DateTime.UtcNow
         });
 
@@ -136,7 +141,11 @@ public class UserManagementService : IUserManagementService
             TargetUserId = userId,
             Action = "ASSIGN_MANAGER",
             Module = "USERS",
-            Metadata = $"ManagerId={managerId}",
+            Metadata = JsonSerializer.Serialize(new
+            {
+                managerId = managerId
+            }),
+
             CreatedAt = DateTime.UtcNow
         });
 
@@ -225,10 +234,13 @@ public class UserManagementService : IUserManagementService
                 u.Department,
                 u.Designation,
                 u.AccountStatus,
+
                 ManagerId = u.ManagerId,
+
                 ManagerName = u.Manager != null
                     ? u.Manager.Profile.FirstName + " " + u.Manager.Profile.LastName
                     : null,
+
                 Profile = new
                 {
                     u.Profile.FirstName,
@@ -240,6 +252,7 @@ public class UserManagementService : IUserManagementService
 
         return user ?? throw new Exception("User not found");
     }
+
 
     // --------------------------------------------------
     // 🔹 GET TEAM BY MANAGER (Zoho “My Team”)
@@ -390,7 +403,11 @@ public class UserManagementService : IUserManagementService
                 TargetUserId = userId,
                 Action = "USER_UPDATE",
                 Module = "USERS",
-                Metadata = string.Join(" | ", changes),
+                Metadata = JsonSerializer.Serialize(new
+                {
+                    changes = changes
+                }),
+
                 CreatedAt = DateTime.UtcNow
             });
         }
@@ -419,7 +436,12 @@ public class UserManagementService : IUserManagementService
             TargetUserId = userId,
             Action = "USER_LOCK",
             Module = "USERS",
-            Metadata = reason,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                reason = reason,
+                lockedBy = lockedBy,
+                lockedAt = DateTime.UtcNow
+            }),
             CreatedAt = DateTime.UtcNow
         });
 

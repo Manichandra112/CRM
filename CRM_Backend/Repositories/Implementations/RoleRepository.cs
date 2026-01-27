@@ -42,7 +42,6 @@ public class RoleRepository : IRoleRepository
         return role;
     }
 
-    // ✅ EXISTING — used by admin role list
     public async Task<List<Role>> GetAllAsync()
     {
         return await _context.Roles
@@ -51,7 +50,6 @@ public class RoleRepository : IRoleRepository
             .ToListAsync();
     }
 
-    // ✅ EXISTING — used by user creation / role assignment
     public async Task<long> GetRoleIdByCodeAsync(string roleCode)
     {
         return await _context.Roles
@@ -60,15 +58,23 @@ public class RoleRepository : IRoleRepository
             .SingleAsync();
     }
 
-    // ✅ NEW — used for domain-scoped dropdowns (Zoho-style)
     public async Task<List<Role>> GetByDomainIdAsync(long domainId)
     {
         return await _context.Roles
-            .Where(r =>
-                r.DomainId == domainId &&
-                r.Active
-            )
+            .Where(r => r.DomainId == domainId && r.Active)
             .OrderBy(r => r.RoleName)
             .ToListAsync();
+    }
+
+    public async Task<Role?> GetByIdAsync(long id)
+    {
+        return await _context.Roles
+            .FirstOrDefaultAsync(r => r.RoleId == id);
+    }
+
+    public async Task UpdateAsync(Role role)
+    {
+        // Entity is already tracked → just save
+        await _context.SaveChangesAsync();
     }
 }

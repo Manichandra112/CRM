@@ -21,27 +21,42 @@ public class RolePermissionService : IRolePermissionService
     }
 
     public async Task AssignPermissionAsync(
-        string roleCode,
-        string permissionCode,
-        long adminId)
+      string roleCode,
+      string permissionCode,
+      long adminId)
     {
         var roleId = await _roles.GetRoleIdByCodeAsync(roleCode);
+
         var permissionId =
             await _permissions.GetPermissionIdByCodeAsync(permissionCode);
 
-        await _repo.AssignPermissionAsync(roleId, permissionId, adminId);
+        if (permissionId == null)
+            throw new Exception("Permission not found");
+
+        await _repo.AssignPermissionAsync(
+            roleId,
+            permissionId.Value,
+            adminId);
     }
+
 
     public async Task RemovePermissionAsync(
-        string roleCode,
-        string permissionCode)
+      string roleCode,
+      string permissionCode)
     {
         var roleId = await _roles.GetRoleIdByCodeAsync(roleCode);
+
         var permissionId =
             await _permissions.GetPermissionIdByCodeAsync(permissionCode);
 
-        await _repo.RemovePermissionAsync(roleId, permissionId);
+        if (permissionId == null)
+            throw new Exception("Permission not found");
+
+        await _repo.RemovePermissionAsync(
+            roleId,
+            permissionId.Value);
     }
+
 
     public async Task<IEnumerable<long>> GetPermissionIdsByRoleAsync(long roleId)
     {

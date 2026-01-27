@@ -66,4 +66,22 @@ public class RoleService : IRoleService
         var roles = await _roles.GetByDomainIdAsync(domain.DomainId);
         return roles.Select(Map).ToList();
     }
+
+    public async Task UpdateAsync(long id, UpdateRoleDto dto)
+    {
+        var role = await _roles.GetByIdAsync(id);
+
+        if (role == null)
+            throw new Exception("Role not found");
+
+        if (role.IsSystemRole)
+            throw new Exception("System roles cannot be modified");
+
+        role.Active = dto.IsActive;
+        role.UpdatedAt = DateTime.UtcNow;
+
+        await _roles.UpdateAsync(role);
+    }
+
+
 }

@@ -37,4 +37,12 @@ public class AdminRolesController : ControllerBase
 
         return Ok(await _roles.GetAllAsync());
     }
+
+    [HttpPut("{id:long}")]
+    public async Task<IActionResult> Update(long id, [FromBody] UpdateRoleDto dto)
+    {
+        await _roles.UpdateAsync(id, dto);
+        return NoContent();
+    }
+
 }

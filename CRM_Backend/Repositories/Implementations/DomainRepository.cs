@@ -45,5 +45,17 @@ namespace CRM_Backend.Repositories.Implementations
             return await _context.Domains
                 .FirstOrDefaultAsync(d => d.DomainCode == code && d.Active);
         }
+
+        public async Task<DomainEntity?> GetByIdAsync(long id)
+        {
+            return await _context.Domains
+                .FirstOrDefaultAsync(d => d.DomainId == id);
+        }
+
+        public async Task UpdateAsync(DomainEntity domain)
+        {
+            await _context.SaveChangesAsync();
+        }
+
     }
 }

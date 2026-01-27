@@ -7,5 +7,8 @@ namespace CRM_Backend.Repositories.Interfaces
         Task<DomainEntity> CreateAsync(string code, string name);
         Task<List<DomainEntity>> GetAllAsync();
         Task<DomainEntity?> GetByCodeAsync(string code);
+
+        Task<DomainEntity?> GetByIdAsync(long id);
+        Task UpdateAsync(DomainEntity domain);
     }
 }

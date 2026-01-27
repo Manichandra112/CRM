@@ -200,12 +200,16 @@ public class AuthService : IAuthService
 
         var userId = security.UserId;
 
-        var current = await _passwordRepository.GetCurrentPasswordAsync(userId)
-            ?? throw new Exception("Password not found");
+        var current = await _passwordRepository.GetCurrentPasswordAsync(userId);
 
-        current.IsCurrent = false;
-        await _passwordRepository.UpdateAsync(current);
+        // If a password exists, expire it
+        if (current != null)
+        {
+            current.IsCurrent = false;
+            await _passwordRepository.UpdateAsync(current);
+        }
 
+        // Always create a new password
         await _passwordRepository.AddAsync(new UserPassword
         {
             UserId = userId,
@@ -217,6 +221,7 @@ public class AuthService : IAuthService
         await _userSecurityRepository.ClearPasswordResetAsync(userId);
         await _refreshTokenRepository.RevokeAllAsync(userId);
     }
+
 
     // --------------------------------------------------
     // HELPERS

@@ -10,4 +10,7 @@ public interface IRoleService
 
     // ✅ NEW (optional filter)
     Task<List<RoleResponseDto>> GetByDomainAsync(string domainCode);
+
+
+    Task UpdateAsync(long id, UpdateRoleDto dto);
 }

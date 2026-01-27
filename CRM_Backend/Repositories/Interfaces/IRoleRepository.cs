@@ -16,6 +16,9 @@ public interface IRoleRepository
 
     Task<long> GetRoleIdByCodeAsync(string roleCode);
 
-    // ✅ NEW — used for domain-scoped role dropdowns
     Task<List<Role>> GetByDomainIdAsync(long domainId);
+
+    Task<Role?> GetByIdAsync(long id);
+
+    Task UpdateAsync(Role role);  
 }

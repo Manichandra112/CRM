@@ -14,7 +14,10 @@ public class PermissionRepository : IPermissionRepository
         _context = context;
     }
 
-    public async Task<long> CreateAsync(string code, string description, string module)
+    public async Task<long> CreateAsync(
+        string code,
+        string description,
+        string module)
     {
         if (await _context.Permissions.AnyAsync(p => p.PermissionCode == code))
             throw new Exception("Permission already exists");
@@ -41,15 +44,17 @@ public class PermissionRepository : IPermissionRepository
             .OrderBy(p => p.PermissionCode)
             .ToListAsync();
     }
-    public async Task<long> GetPermissionIdByCodeAsync(string permissionCode)
+
+    public async Task<long?> GetPermissionIdByCodeAsync(string permissionCode)
     {
         return await _context.Permissions
             .Where(p => p.PermissionCode == permissionCode && p.Active)
-            .Select(p => p.PermissionId)
-            .SingleAsync();
+            .Select(p => (long?)p.PermissionId)
+            .SingleOrDefaultAsync();
     }
+
     public async Task<List<string>> GetPermissionCodesByIdsAsync(
-    IEnumerable<long> permissionIds)
+        IEnumerable<long> permissionIds)
     {
         return await _context.Permissions
             .Where(p => permissionIds.Contains(p.PermissionId) && p.Active)
@@ -58,5 +63,15 @@ public class PermissionRepository : IPermissionRepository
             .ToListAsync();
     }
 
+    public async Task<Permission?> GetByIdAsync(long id)
+    {
+        return await _context.Permissions
+            .FirstOrDefaultAsync(p => p.PermissionId == id);
+    }
 
+    public async Task UpdateAsync(Permission permission)
+    {
+        _context.Entry(permission).State = EntityState.Modified;
+        await _context.SaveChangesAsync();
+    }
 }

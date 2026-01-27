@@ -14,6 +14,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // --------------------------------------------------
@@ -132,10 +133,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // --------------------------------------------------
 builder.Services.AddAuthorization(options =>
 {
-    // auto-register policies from permissions table
+    
     PermissionPolicies.Register(options);
 
-    // account gates
+   
     options.AddPolicy("PASSWORD_RESET_COMPLETED", policy =>
         policy.RequireClaim("pwd_reset_completed", "true")
     );
@@ -144,19 +145,42 @@ builder.Services.AddAuthorization(options =>
         policy.RequireClaim("account_status", "ACTIVE")
     );
 
-    // user management
+   
+    options.AddPolicy("USER_VIEW", policy =>
+        policy.RequireClaim("perm", "USER_VIEW")
+    );
+
+    options.AddPolicy("USER_CREATE", policy =>
+        policy.RequireClaim("perm", "USER_CREATE")
+    );
+
+    options.AddPolicy("USER_UPDATE", policy =>
+        policy.RequireClaim("perm", "USER_UPDATE")
+    );
+
+    options.AddPolicy("USER_LOCK", policy =>
+        policy.RequireClaim("perm", "USER_LOCK")
+    );
+
+    options.AddPolicy("USER_UNLOCK", policy =>
+        policy.RequireClaim("perm", "USER_UNLOCK")
+    );
+
     options.AddPolicy("USER_ASSIGN_MANAGER", policy =>
         policy.RequireClaim("perm", "USER_ASSIGN_MANAGER")
     );
 
-    options.AddPolicy("USER_VIEW_TEAM", policy =>
-        policy.RequireClaim("perm", "USER_VIEW_TEAM")
+    options.AddPolicy("USER_RESET_PASSWORD", policy =>
+        policy.RequireClaim("perm", "USER_RESET_PASSWORD")
     );
 
-    options.AddPolicy("USER_VIEW", policy =>
-        policy.RequireClaim("perm", "USER_VIEW")
+   
+    options.AddPolicy("CRM_FULL_ACCESS", policy =>
+        policy.RequireClaim("perm", "CRM_FULL_ACCESS")
     );
 });
+
+
 
 
 
@@ -180,6 +204,11 @@ builder.Services.AddScoped<IUserVisibilityService, UserVisibilityService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IAdminUserListService, AdminUserListService>();
+builder.Services.AddScoped<IAdminUserDetailsService, AdminUserDetailsService>();
+builder.Services.AddScoped<IAdminUserSecurityService, AdminUserSecurityService>();
+builder.Services.AddScoped<IAdminUserAuditLogService, AdminUserAuditLogService>();
+
 
 
 
@@ -211,6 +240,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("DefaultCors");
 
 app.UseRouting();
+app.UseHttpsRedirection();
 
 // 🔐 ORDER MATTERS
 app.UseAuthentication();
