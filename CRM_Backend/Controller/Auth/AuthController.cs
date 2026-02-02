@@ -49,17 +49,17 @@ public class AuthController : ControllerBase
 
         await _authService.ChangePasswordAsync(
             userId,
-            dto.CurrentPassword,
             dto.NewPassword
         );
 
         return Ok(new
         {
-            message = "Password changed successfully. Please login again."
+            message = "Password set successfully. Please login again."
         });
     }
 
-    // ---------------- FORGOT PASSWORD (NEW) ----------------
+
+    // ---------------- FORGOT PASSWORD  ----------------
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]
@@ -73,6 +73,27 @@ public class AuthController : ControllerBase
         {
             message = "If the email exists, a reset link has been sent."
         });
+    }
+
+    // ---------------- Validting token  ----------------
+    [HttpGet("validate-reset-token")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ValidateResetToken(
+    [FromQuery] string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest(new { valid = false });
+        }
+
+        var isValid = await _authService.ValidateResetTokenAsync(token);
+
+        if (!isValid)
+        {
+            return BadRequest(new { valid = false });
+        }
+
+        return Ok(new { valid = true });
     }
 
     // ---------------- RESET FORGOT PASSWORD (NEW) ----------------
@@ -92,4 +113,6 @@ public class AuthController : ControllerBase
             message = "Password reset successful. Please login."
         });
     }
+
+
 }

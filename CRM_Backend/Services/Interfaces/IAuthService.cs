@@ -11,12 +11,13 @@ public interface IAuthService
     );
 
     Task ChangePasswordAsync(
-        long userId,
-        string currentPassword,
-        string newPassword
-    );
+         long userId,
+         string newPassword
+     );
 
-   
+    Task<bool> ValidateResetTokenAsync(string token);
+
+
     Task ForgotPasswordAsync(string email);
 
     Task ResetForgotPasswordAsync(

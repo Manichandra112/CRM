@@ -32,10 +32,10 @@ namespace CRM_Backend.Repositories.Implementations
             return domain;
         }
 
+      
         public async Task<List<DomainEntity>> GetAllAsync()
         {
             return await _context.Domains
-                .Where(d => d.Active)
                 .OrderBy(d => d.DomainName)
                 .ToListAsync();
         }
@@ -56,6 +56,14 @@ namespace CRM_Backend.Repositories.Implementations
         {
             await _context.SaveChangesAsync();
         }
+
+        public async Task<List<DomainEntity>> GetByIdsAsync(IEnumerable<long> domainIds)
+        {
+            return await _context.Domains
+                .Where(d => domainIds.Contains(d.DomainId) && d.Active)
+                .ToListAsync();
+        }
+
 
     }
 }

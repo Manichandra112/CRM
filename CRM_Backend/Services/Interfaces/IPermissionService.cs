@@ -8,6 +8,5 @@ public interface IPermissionService
     Task<long> CreateAsync(CreatePermissionDto dto);
     Task<List<Permission>> GetAllAsync();
 
-    // ✅ NEW
     Task UpdateAsync(long id, UpdatePermissionDto dto);
 }

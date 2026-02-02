@@ -56,4 +56,18 @@ public class UserRepository : IUserRepository
             .OrderBy(u => u.Username)
             .ToListAsync();
     }
+
+
+    public async Task<List<User>> GetAllManagersAsync()
+    {
+        return await _context.Users
+            .Include(u => u.Profile)
+            .Include(u => u.Domain)
+            .Where(u =>
+                u.AccountStatus == "ACTIVE" &&
+                u.UserRoles.Any(ur => ur.Role.RoleCode.EndsWith("_MANAGER"))
+            )
+            .OrderBy(u => u.Profile.FirstName)
+            .ToListAsync();
+    }
 }

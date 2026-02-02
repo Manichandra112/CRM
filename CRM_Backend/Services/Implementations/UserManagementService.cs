@@ -540,6 +540,23 @@ public class UserManagementService : IUserManagementService
             .OrderBy(u => u.Username)
             .ToListAsync();
     }
+    public async Task<List<UserLookupDto>> GetAllManagersAsync()
+    {
+        return await _context.Users
+            .Where(u =>
+                u.AccountStatus == "ACTIVE" &&
+                u.UserRoles.Any(ur => ur.Role.RoleCode.EndsWith("_MANAGER"))
+            )
+            .Select(u => new UserLookupDto
+            {
+                UserId = u.UserId,
+                Name = u.Profile.FirstName + " " + u.Profile.LastName,
+                DomainCode = u.Domain.DomainCode
+            })
+            .OrderBy(u => u.Name)
+            .ToListAsync();
+    }
+
 
 
 

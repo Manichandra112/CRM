@@ -11,6 +11,7 @@ namespace CRM_Backend.Services.Implementations;
 
 public class AuthService : IAuthService
 {
+    private readonly IConfiguration _configuration;
     private readonly IUserRepository _userRepository;
     private readonly IUserPasswordRepository _passwordRepository;
     private readonly IPasswordService _passwordService;
@@ -30,7 +31,8 @@ public class AuthService : IAuthService
         IJwtService jwtService,
         IUserRoleRepository userRoleRepository,
         IRefreshTokenRepository refreshTokenRepository,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IConfiguration configuration)
     {
         _userRepository = userRepository;
         _passwordRepository = passwordRepository;
@@ -41,6 +43,7 @@ public class AuthService : IAuthService
         _userRoleRepository = userRoleRepository;
         _refreshTokenRepository = refreshTokenRepository;
         _notificationService = notificationService;
+        _configuration = configuration;
     }
 
     // --------------------------------------------------
@@ -82,27 +85,50 @@ public class AuthService : IAuthService
             return Fail(reason);
         }
 
-
         var currentPassword = await _passwordRepository.GetCurrentPasswordAsync(user.UserId);
 
-        if (currentPassword == null ||
-            !_passwordService.VerifyPassword(request.Password, currentPassword.PasswordHash))
+        if (currentPassword == null)
         {
-            await _userSecurityRepository.IncrementFailedAsync(user.UserId);
-            return Fail("Invalid email or password");
+            if (security?.ForcePasswordReset != true)
+            {
+                await _userSecurityRepository.IncrementFailedAsync(user.UserId);
+                return Fail("Invalid email or password");
+            }
+        }
+        else
+        {
+            if (!_passwordService.VerifyPassword(request.Password, currentPassword.PasswordHash))
+            {
+                await _userSecurityRepository.IncrementFailedAsync(user.UserId);
+                return Fail("Invalid email or password");
+            }
         }
 
+        // 🔐 SECURITY HOUSEKEEPING
         await _userSecurityRepository.ResetFailuresAsync(user.UserId);
         await _refreshTokenRepository.RevokeAllAsync(user.UserId);
+
+        await _userSecurityRepository.UpdateLastLoginAsync(
+            user.UserId,
+            ipAddress,
+            userAgent
+        );
+
+        await LogAttempt(
+            user.UserId,
+            user.Email,
+            ipAddress,
+            userAgent,
+            true,
+            null
+        );
 
         var roles = await _userRoleRepository.GetRoleCodesByUserIdAsync(user.UserId);
         var permissions = await _userRoleRepository.GetPermissionCodesByUserIdAsync(user.UserId);
 
-        bool passwordResetCompleted = !security.ForcePasswordReset;
-
+        // ✅ JWT derives reset flags from DB (NO boolean passed anymore)
         var accessToken = _jwtService.GenerateAccessToken(
             user,
-            passwordResetCompleted,
             roles,
             permissions
         );
@@ -133,20 +159,24 @@ public class AuthService : IAuthService
         };
     }
 
-    // --------------------------------------------------
-    // CHANGE PASSWORD (LOGGED-IN USER)
-    // --------------------------------------------------
-    public async Task ChangePasswordAsync(long userId, string currentPassword, string newPassword)
+
+
+    public async Task ChangePasswordAsync(
+    long userId,
+    string newPassword)
     {
-        var current = await _passwordRepository.GetCurrentPasswordAsync(userId)
-            ?? throw new Exception("Password not found");
+        var security = await _userSecurityRepository.GetByUserIdAsync(userId)
+            ?? throw new Exception("Security record not found");
 
-        if (!_passwordService.VerifyPassword(currentPassword, current.PasswordHash))
-            throw new Exception("Current password is incorrect");
+        // 🔁 Expire old password (if exists)
+        var current = await _passwordRepository.GetCurrentPasswordAsync(userId);
+        if (current != null)
+        {
+            current.IsCurrent = false;
+            await _passwordRepository.UpdateAsync(current);
+        }
 
-        current.IsCurrent = false;
-        await _passwordRepository.UpdateAsync(current);
-
+        // ✅ Set new password
         await _passwordRepository.AddAsync(new UserPassword
         {
             UserId = userId,
@@ -155,8 +185,14 @@ public class AuthService : IAuthService
             CreatedAt = DateTime.UtcNow
         });
 
+        // 🔐 Clear force-reset flag (safe even if already false)
         await _userSecurityRepository.ClearForceResetAsync(userId);
+
+        // 🔒 Kill all existing sessions
+        await _refreshTokenRepository.RevokeAllAsync(userId);
     }
+
+
 
     // --------------------------------------------------
     // FORGOT PASSWORD
@@ -165,7 +201,7 @@ public class AuthService : IAuthService
     {
         var user = await _userRepository.GetByEmailAsync(email);
         if (user == null)
-            return; // prevent enumeration
+            return; // prevent user enumeration
 
         var rawToken = Guid.NewGuid().ToString("N");
         var tokenHash = HashResetToken(rawToken);
@@ -177,13 +213,19 @@ public class AuthService : IAuthService
             expiresAt
         );
 
-        var resetLink = $"https://frontend/reset-password?token={rawToken}";
+        // ✅ READ FROM CONFIG
+        var baseUrl = _configuration["Frontend:BaseUrl"]?.TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            throw new Exception("Frontend BaseUrl is not configured");
 
+
+        var resetLink = $"{baseUrl}/reset-forgot-password?token={rawToken}";
         await _notificationService.SendPasswordResetAsync(
             user.Email,
             resetLink
         );
     }
+
 
     // --------------------------------------------------
     // RESET FORGOT PASSWORD
@@ -198,18 +240,22 @@ public class AuthService : IAuthService
         if (security == null)
             throw new Exception("Invalid or expired reset token");
 
+        if (security.PasswordResetExpiresAt == null ||
+            security.PasswordResetExpiresAt < DateTime.UtcNow)
+        {
+            throw new Exception("Invalid or expired reset token");
+        }
+
         var userId = security.UserId;
 
         var current = await _passwordRepository.GetCurrentPasswordAsync(userId);
 
-        // If a password exists, expire it
         if (current != null)
         {
             current.IsCurrent = false;
             await _passwordRepository.UpdateAsync(current);
         }
 
-        // Always create a new password
         await _passwordRepository.AddAsync(new UserPassword
         {
             UserId = userId,
@@ -218,10 +264,10 @@ public class AuthService : IAuthService
             CreatedAt = DateTime.UtcNow
         });
 
+        // 🔐 Clear reset state completely
         await _userSecurityRepository.ClearPasswordResetAsync(userId);
         await _refreshTokenRepository.RevokeAllAsync(userId);
     }
-
 
     // --------------------------------------------------
     // HELPERS
@@ -252,6 +298,24 @@ public class AuthService : IAuthService
             CreatedAt = DateTime.UtcNow
         });
     }
+
+    public async Task<bool> ValidateResetTokenAsync(string token)
+    {
+        var tokenHash = HashResetToken(token);
+
+        var security = await _userSecurityRepository
+            .GetByResetTokenHashAsync(tokenHash);
+
+        if (security == null ||
+            security.PasswordResetExpiresAt == null ||
+            security.PasswordResetExpiresAt < DateTime.UtcNow)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
 
     private static AuthResultDto Fail(string message) =>
         new() { Success = false, Error = message };

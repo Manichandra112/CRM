@@ -6,7 +6,6 @@ namespace CRM_Backend.Services.Interfaces
     {
         Task<DomainResponseDto> CreateAsync(CreateDomainDto dto);
         Task<List<DomainResponseDto>> GetAllAsync();
-
-        Task UpdateAsync(long id, UpdateDomainDto dto);
+        Task<DomainResponseDto> UpdateAsync(long id, UpdateDomainDto dto);
     }
 }

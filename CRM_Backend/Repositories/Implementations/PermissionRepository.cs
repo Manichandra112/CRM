@@ -40,7 +40,7 @@ public class PermissionRepository : IPermissionRepository
     public async Task<List<Permission>> GetAllAsync()
     {
         return await _context.Permissions
-            .Where(p => p.Active)
+      
             .OrderBy(p => p.PermissionCode)
             .ToListAsync();
     }
@@ -74,4 +74,12 @@ public class PermissionRepository : IPermissionRepository
         _context.Entry(permission).State = EntityState.Modified;
         await _context.SaveChangesAsync();
     }
+
+    public async Task<List<Permission>> GetByCodesAsync(IEnumerable<string> permissionCodes)
+    {
+        return await _context.Permissions
+            .Where(p => permissionCodes.Contains(p.PermissionCode) && p.Active)
+            .ToListAsync();
+    }
+
 }

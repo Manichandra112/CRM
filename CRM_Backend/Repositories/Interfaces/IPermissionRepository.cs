@@ -14,4 +14,8 @@ public interface IPermissionRepository
     Task<Permission?> GetByIdAsync(long id);
     Task UpdateAsync(Permission permission);
 
+
+    Task<List<Permission>> GetByCodesAsync(IEnumerable<string> permissionCodes);
+
+
 }

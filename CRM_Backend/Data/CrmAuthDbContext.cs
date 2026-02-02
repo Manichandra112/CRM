@@ -30,6 +30,9 @@ public class CrmAuthDbContext : DbContext
     // CRM Domains (HR, SALES, SOCIAL, etc.)
     public DbSet<DomainEntity> Domains => Set<DomainEntity>();
 
+    // Departments (Engineering, HR, Sales, etc.)
+    public DbSet<Department> Departments => Set<Department>();
+
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
 
@@ -59,9 +62,52 @@ public class CrmAuthDbContext : DbContext
 
             entity.Property(d => d.CreatedAt)
                   .IsRequired();
+
+            entity.HasIndex(d => d.DomainCode)
+                  .IsUnique();
         });
 
+        // ------------------------------------------------
+        // DEPARTMENTS (domain-scoped, organizational)
+        // ------------------------------------------------
+        modelBuilder.Entity<Department>(entity =>
+        {
+            entity.ToTable("departments");
 
+            entity.HasKey(d => d.Id);
+
+            entity.Property(d => d.DomainCode)
+                  .IsRequired()
+                  .HasMaxLength(50);
+
+            entity.Property(d => d.Code)
+                  .IsRequired()
+                  .HasMaxLength(50);
+
+            entity.Property(d => d.Name)
+                  .IsRequired()
+                  .HasMaxLength(100);
+
+            entity.Property(d => d.IsActive)
+                  .HasDefaultValue(true);
+
+            entity.Property(d => d.CreatedAt)
+                  .IsRequired();
+
+            // Unique per domain
+            entity.HasIndex(d => new { d.DomainCode, d.Code })
+                  .IsUnique();
+
+            // FK via business key (DomainCode)
+            entity.HasOne<DomainEntity>()
+                  .WithMany()
+                  .HasForeignKey(d => d.DomainCode)
+                  .HasPrincipalKey(d => d.DomainCode)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ------------------------------------------------
+        // USER
         // ------------------------------------------------
         modelBuilder.Entity<User>()
             .HasOne(u => u.Domain)
@@ -69,23 +115,30 @@ public class CrmAuthDbContext : DbContext
             .HasForeignKey(u => u.DomainId)
             .OnDelete(DeleteBehavior.Restrict);
 
-
         modelBuilder.Entity<User>()
             .HasOne(u => u.Manager)
             .WithMany(m => m.TeamMembers)
             .HasForeignKey(u => u.ManagerId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // ------------------------------------------------
+        // ROLE
+        // ------------------------------------------------
         modelBuilder.Entity<Role>()
             .HasOne(r => r.Domain)
             .WithMany(d => d.Roles)
             .HasForeignKey(r => r.DomainId)
             .OnDelete(DeleteBehavior.Restrict);
 
-
+        // ------------------------------------------------
+        // ROLE ↔ PERMISSION
+        // ------------------------------------------------
         modelBuilder.Entity<RolePermission>()
             .HasKey(rp => new { rp.RoleId, rp.PermissionId });
 
+        // ------------------------------------------------
+        // USER ↔ ROLE
+        // ------------------------------------------------
         modelBuilder.Entity<UserRole>()
             .HasIndex(ur => new { ur.UserId, ur.RoleId })
             .IsUnique();
@@ -116,7 +169,5 @@ public class CrmAuthDbContext : DbContext
             entity.HasIndex(a => a.ActorUserId);
             entity.HasIndex(a => a.TargetUserId);
         });
-
     }
-
 }

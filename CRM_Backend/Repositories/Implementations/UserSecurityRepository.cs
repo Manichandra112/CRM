@@ -131,4 +131,23 @@ public class UserSecurityRepository : IUserSecurityRepository
 
         await _context.SaveChangesAsync();
     }
+
+    public async Task UpdateLastLoginAsync(
+    long userId,
+    string ipAddress,
+    string userAgent,
+    string? location = null)
+    {
+        var security = await GetOrCreateAsync(userId);
+
+        security.LastLoginAt = DateTime.UtcNow;
+        security.LastLoginIp = ipAddress;
+        security.LastLoginDevice = userAgent;
+        security.LastLoginLocation = location;
+        security.FailedLoginCount = 0;
+        security.LockedUntil = null;
+
+        await _context.SaveChangesAsync();
+    }
+
 }

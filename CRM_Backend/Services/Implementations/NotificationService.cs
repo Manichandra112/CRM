@@ -1,31 +1,50 @@
-﻿namespace CRM_Backend.Services.Implementations
-{
-    using CRM_Backend.Security.Email;
-    using CRM_Backend.Services.Interfaces;
-    using Microsoft.Extensions.Options;
+﻿using CRM_Backend.Security.Email;
+using CRM_Backend.Services.Interfaces;
+using Microsoft.Extensions.Options;
+using System.Net;
+using System.Net.Mail;
 
+namespace CRM_Backend.Services.Implementations
+{
     public class NotificationService : INotificationService
     {
-        private readonly EmailSettings _settings;
+        private readonly EmailSettings _email;
+        private readonly SmtpSettings _smtp;
 
-        public NotificationService(IOptions<EmailSettings> options)
+        public NotificationService(
+            IOptions<EmailSettings> emailOptions,
+            IOptions<SmtpSettings> smtpOptions)
         {
-            _settings = options.Value;
+            _email = emailOptions.Value;
+            _smtp = smtpOptions.Value;
         }
 
-        public Task SendPasswordResetAsync(string userEmail, string resetLink)
+        public async Task SendPasswordResetAsync(string userEmail, string resetLink)
         {
-            var targetEmail = string.IsNullOrWhiteSpace(_settings.OverrideRecipient)
+            var to = string.IsNullOrWhiteSpace(_email.OverrideRecipient)
                 ? userEmail
-                : _settings.OverrideRecipient;
+                : _email.OverrideRecipient;
 
-            // DEV behavior
-            Console.WriteLine(
-                $"[DEV EMAIL] To: {targetEmail}\nReset link: {resetLink}"
-            );
+            var message = new MailMessage
+            {
+                From = new MailAddress(_smtp.From),
+                Subject = "Reset your CRM password",
+                Body = $"Click the link to reset your password:\n\n{resetLink}",
+                IsBodyHtml = false
+            };
 
-            return Task.CompletedTask;
+            message.To.Add(to);
+
+            using var client = new SmtpClient(_smtp.Host, _smtp.Port)
+            {
+                Credentials = new NetworkCredential(
+                    _smtp.Username,
+                    _smtp.Password
+                ),
+                EnableSsl = true
+            };
+
+            await client.SendMailAsync(message);
         }
     }
-
 }

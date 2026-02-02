@@ -77,4 +77,13 @@ public class RoleRepository : IRoleRepository
         // Entity is already tracked → just save
         await _context.SaveChangesAsync();
     }
+
+    public async Task<List<Role>> GetByCodesAsync(IEnumerable<string> roleCodes)
+    {
+        return await _context.Roles
+            .Where(r => roleCodes.Contains(r.RoleCode) && r.Active)
+            .ToListAsync();
+    }
+
+
 }

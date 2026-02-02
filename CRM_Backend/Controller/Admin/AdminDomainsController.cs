@@ -19,22 +19,23 @@ public class AdminDomainsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateDomainDto dto)
     {
-        return Ok(await _domains.CreateAsync(dto));
+        var created = await _domains.CreateAsync(dto);
+        return Ok(created);
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        return Ok(await _domains.GetAllAsync());
+        var domains = await _domains.GetAllAsync();
+        return Ok(domains);
     }
 
-    // ✅ NEW
     [HttpPut("{id:long}")]
     public async Task<IActionResult> Update(
         long id,
         [FromBody] UpdateDomainDto dto)
     {
-        await _domains.UpdateAsync(id, dto);
-        return NoContent(); // 204
+        var updated = await _domains.UpdateAsync(id, dto);
+        return Ok(updated);
     }
 }

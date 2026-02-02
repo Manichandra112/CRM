@@ -24,4 +24,11 @@ public interface IUserSecurityRepository
     Task ClearPasswordResetAsync(
         long userId
     );
+
+    Task UpdateLastLoginAsync(
+    long userId,
+    string ipAddress,
+    string userAgent,
+    string? location = null
+);
 }

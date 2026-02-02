@@ -70,6 +70,13 @@ public class UsersController : ControllerBase
         return Ok(managers);
     }
 
+    [HttpGet("admin/managers")]
+    [Authorize(Policy = "CRM_FULL_ACCESS")]
+    public async Task<IActionResult> GetAllManagers()
+    {
+        return Ok(await _users.GetAllManagersAsync());
+    }
+
     // GET USER
     [HttpGet("{userId:long}")]
     [Authorize(Policy = "USER_VIEW")]

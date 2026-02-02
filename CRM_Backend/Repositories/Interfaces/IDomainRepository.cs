@@ -10,5 +10,8 @@ namespace CRM_Backend.Repositories.Interfaces
 
         Task<DomainEntity?> GetByIdAsync(long id);
         Task UpdateAsync(DomainEntity domain);
+
+        Task<List<DomainEntity>> GetByIdsAsync(IEnumerable<long> domainIds);
+
     }
 }

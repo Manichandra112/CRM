@@ -6,4 +6,7 @@ public class DomainResponseDto
     public string DomainCode { get; set; } = default!;
     public string DomainName { get; set; } = default!;
     public bool Active { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }

@@ -21,7 +21,9 @@ namespace CRM_Backend.Services.Implementations
                 DomainId = domain.DomainId,
                 DomainCode = domain.DomainCode,
                 DomainName = domain.DomainName,
-                Active = domain.Active
+                Active = domain.Active,
+                CreatedAt = domain.CreatedAt,
+                UpdatedAt = domain.UpdatedAt
             };
         }
 
@@ -37,8 +39,7 @@ namespace CRM_Backend.Services.Implementations
             return domains.Select(Map).ToList();
         }
 
-        // ✅ NEW: Update
-        public async Task UpdateAsync(long id, UpdateDomainDto dto)
+        public async Task<DomainResponseDto> UpdateAsync(long id, UpdateDomainDto dto)
         {
             var domain = await _domains.GetByIdAsync(id);
             if (domain == null)
@@ -48,9 +49,8 @@ namespace CRM_Backend.Services.Implementations
             domain.UpdatedAt = DateTime.UtcNow;
 
             await _domains.UpdateAsync(domain);
+
+            return Map(domain);
         }
-
-
-
     }
 }

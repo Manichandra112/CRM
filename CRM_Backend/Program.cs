@@ -192,6 +192,12 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<IAuthorizationHandler,
     ForcePasswordResetHandler>();
 
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("Email"));
+
+builder.Services.Configure<SmtpSettings>(
+    builder.Configuration.GetSection("Smtp"));
+
 // Services
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
@@ -208,6 +214,9 @@ builder.Services.AddScoped<IAdminUserListService, AdminUserListService>();
 builder.Services.AddScoped<IAdminUserDetailsService, AdminUserDetailsService>();
 builder.Services.AddScoped<IAdminUserSecurityService, AdminUserSecurityService>();
 builder.Services.AddScoped<IAdminUserAuditLogService, AdminUserAuditLogService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<IAccessService, AccessService>();
+
 
 
 
