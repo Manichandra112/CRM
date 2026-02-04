@@ -1,0 +1,33 @@
+﻿version: "3.9"
+
+services:
+  crm-backend:
+    build:
+      context: ./CRM_Backend
+      dockerfile: Dockerfile
+    container_name: crm_backend
+    ports:
+      - "7246:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+        # 🔑 DB connection (Docker DNS name = service name)
+      ConnectionStrings__DefaultConnection: Host=crm-db;Port=5432;Database=crm;Username=crm_user;Password=crm_pass
+    depends_on:
+      - crm-db
+    restart: always
+
+  crm-db:
+    image: postgres:15
+    container_name: crm_db
+    environment:
+      POSTGRES_DB: crm
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: crm_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - crm_pg_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  crm_pg_data:
