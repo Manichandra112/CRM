@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System;
 using System.Text;
 
 
@@ -236,15 +237,39 @@ builder.Services.AddScoped<IDomainRepository, DomainRepository>();
 // --------------------------------------------------
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<CrmAuthDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    var retries = 10;
+    while (retries > 0)
+    {
+        try
+        {
+            logger.LogInformation("Applying database migrations...");
+            db.Database.Migrate();
+            logger.LogInformation("Database migrations applied successfully");
+            break;
+        }
+        catch (Exception ex)
+        {
+            retries--;
+            logger.LogWarning(ex, "Database not ready. Retrying...");
+            Thread.Sleep(3000);
+        }
+    }
+}
 // --------------------------------------------------
 // Middleware pipeline
 // --------------------------------------------------
-if (app.Environment.IsDevelopment())
-{
+//if (app.Environment.IsDevelopment())
+
+//{
     app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI();
-}
+//}
 
 app.UseCors("DefaultCors");
 

@@ -1,6 +1,4 @@
-# ===============================
-# Build stage
-# ===============================
+# -------- BUILD STAGE --------
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
@@ -10,15 +8,13 @@ RUN dotnet restore
 COPY . .
 RUN dotnet publish -c Release -o /app/publish
 
-# ===============================
-# Runtime stage
-# ===============================
+# -------- RUNTIME STAGE --------
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
-COPY --from=build /app/publish .
-
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
+
+COPY --from=build /app/publish .
 
 ENTRYPOINT ["dotnet", "CRM_Backend.dll"]
